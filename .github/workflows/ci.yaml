@@ -1,0 +1,13 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+  pull_request: {}
+jobs:
+  ci:
+    uses: stefanpenner-cs/reusable-workflows/.github/workflows/shared.yaml@5cc4a5a470934fe5bc09226daabf7bacb284b122
+    with:
+      ref: 5cc4a5a470934fe5bc09226daabf7bacb284b122
