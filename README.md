@@ -3,7 +3,7 @@
 A disposable **sandbox harness** for shadow-testing a reusable-workflows PR against a real consumer,
 under an authentic `pull_request` event.
 
-When a PR opens in the provider (`stefanpenner/shared-workflow-test`), its shadow workflow dispatches
+When a PR opens in the provider (`stefanpenner-cs/reusable-workflows`), its shadow workflow dispatches
 the [`receiver`](.github/workflows/receiver.yaml) here. The receiver:
 
 1. clones the consumer's code at the requested ref,
