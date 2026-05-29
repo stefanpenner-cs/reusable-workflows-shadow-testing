@@ -10,6 +10,21 @@ export interface PatchOptions {
 /** A job-level reusable-workflow `uses:` — `owner/repo/.github/workflows/<file>@<ref>`. */
 const REUSABLE_USES = /^(?<repo>[^/]+\/[^/]+)\/(?<path>\.github\/workflows\/[^@]+)@.+$/;
 
+/** True if any job calls `providerRepo` as a reusable workflow. Used to decide which of a consumer's
+ * workflows to mirror-transform — so unrelated workflows aren't force-triggered on the shadow PR. */
+export function workflowReferencesProvider(yaml: string, providerRepo: string): boolean {
+  const doc = parseDocument(yaml);
+  const jobs = doc.get('jobs');
+  if (!isMap(jobs)) return false;
+  for (const { value: job } of jobs.items) {
+    if (!isMap(job)) continue;
+    const uses = job.get('uses');
+    if (typeof uses !== 'string') continue;
+    if (REUSABLE_USES.exec(uses)?.groups?.repo === providerRepo) return true;
+  }
+  return false;
+}
+
 /**
  * Repoint a consumer's reusable-workflow call at a specific provider ref so the consumer's CI
  * exercises the provider's draft state. Pure: takes YAML in, returns YAML out, preserving comments

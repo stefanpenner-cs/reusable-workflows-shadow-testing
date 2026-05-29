@@ -1,36 +1,35 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import { parse } from 'yaml';
 import { transformWorkflowFile } from '../src/core/transformWorkflowFile.ts';
 
 const SHA = '0123456789abcdef0123456789abcdef01234567';
-const opts = { providerRepo: 'stefanpenner/shared-workflow-test', providerRef: SHA };
+const opts = { providerRepo: 'stefanpenner-cs/reusable-workflows', providerRef: SHA };
 
-// The real consumer ci.yaml as it exists today (with the .yml typo and no pull_request trigger).
+// The real consumer ci.yaml shape (with a .yml typo and no pull_request trigger).
 const CONSUMER = [
-  'name: Use Shared Workflow',
+  'name: CI',
   'on:',
   '  push:',
   '    branches: [main]',
   '  workflow_dispatch:',
   'jobs:',
   '  ci:',
-  '    uses: stefanpenner/shared-workflow-test/.github/workflows/shared.yml@main',
+  '    uses: stefanpenner-cs/reusable-workflows/.github/workflows/shared.yml@main',
   '',
 ].join('\n');
 
 describe('transformWorkflowFile', () => {
   it('applies both the provider repoint and the pull_request trigger in one pass', () => {
     const out = parse(transformWorkflowFile(CONSUMER, opts));
-    expect(out.jobs.ci.uses).toBe(
-      `stefanpenner/shared-workflow-test/.github/workflows/shared.yaml@${SHA}`,
-    );
-    expect(out.jobs.ci.with.ref).toBe(SHA);
-    expect(out.on).toHaveProperty('pull_request');
-    expect(out.on).toHaveProperty('push');
+    assert.equal(out.jobs.ci.uses, `stefanpenner-cs/reusable-workflows/.github/workflows/shared.yaml@${SHA}`);
+    assert.equal(out.jobs.ci.with.ref, SHA);
+    assert.ok('pull_request' in out.on);
+    assert.ok('push' in out.on);
   });
 
   it('is idempotent', () => {
     const once = transformWorkflowFile(CONSUMER, opts);
-    expect(transformWorkflowFile(once, opts)).toBe(once);
+    assert.equal(transformWorkflowFile(once, opts), once);
   });
 });

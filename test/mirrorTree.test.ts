@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -24,8 +25,8 @@ describe('mirrorTree', () => {
 
     mirrorTree(src, dest);
 
-    expect(readFileSync(join(dest, 'README.md'), 'utf8')).toBe('hi');
-    expect(existsSync(join(dest, '.github', 'workflows', 'ci.yaml'))).toBe(true);
+    assert.equal(readFileSync(join(dest, 'README.md'), 'utf8'), 'hi');
+    assert.ok(existsSync(join(dest, '.github', 'workflows', 'ci.yaml')));
   });
 
   it('never copies the source .git directory', () => {
@@ -35,7 +36,7 @@ describe('mirrorTree', () => {
 
     mirrorTree(src, dest);
 
-    expect(existsSync(join(dest, 'app.js'))).toBe(true);
-    expect(existsSync(join(dest, '.git'))).toBe(false);
+    assert.ok(existsSync(join(dest, 'app.js')));
+    assert.ok(!existsSync(join(dest, '.git')));
   });
 });

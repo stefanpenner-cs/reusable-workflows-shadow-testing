@@ -1,25 +1,27 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import { buildDispatchInputs, extractRunId } from '../src/core/dispatch.ts';
 
 describe('buildDispatchInputs', () => {
   it('maps the shadow context to the receiver workflow_dispatch inputs (all strings)', () => {
-    expect(
+    assert.deepEqual(
       buildDispatchInputs({
-        providerRepo: 'stefanpenner/shared-workflow-test',
+        providerRepo: 'stefanpenner-cs/reusable-workflows',
         providerRef: 'deadbeef',
         consumerRepo: 'o/r',
         consumerRef: 'main',
         providerPr: 7,
         branch: 'shadow/pr-7-o-r',
       }),
-    ).toEqual({
-      provider_repo: 'stefanpenner/shared-workflow-test',
-      provider_ref: 'deadbeef',
-      consumer_repo: 'o/r',
-      consumer_ref: 'main',
-      provider_pr: '7',
-      branch: 'shadow/pr-7-o-r',
-    });
+      {
+        provider_repo: 'stefanpenner-cs/reusable-workflows',
+        provider_ref: 'deadbeef',
+        consumer_repo: 'o/r',
+        consumer_ref: 'main',
+        provider_pr: '7',
+        branch: 'shadow/pr-7-o-r',
+      },
+    );
   });
 });
 
@@ -32,14 +34,14 @@ describe('extractRunId', () => {
   };
 
   it('reads workflow_run_id', () => {
-    expect(extractRunId(response)).toBe(1234567890);
+    assert.equal(extractRunId(response), 1234567890);
   });
 
   it('throws when no run id is present', () => {
-    expect(() => extractRunId({})).toThrow();
+    assert.throws(() => extractRunId({}));
   });
 
   it('throws when workflow_run_id is not a number', () => {
-    expect(() => extractRunId({ workflow_run_id: 'nope' })).toThrow();
+    assert.throws(() => extractRunId({ workflow_run_id: 'nope' }));
   });
 });

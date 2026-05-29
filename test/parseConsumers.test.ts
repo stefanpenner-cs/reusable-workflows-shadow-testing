@@ -1,30 +1,31 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import { parseConsumers } from '../src/core/parseConsumers.ts';
 
 describe('parseConsumers', () => {
   it('parses a list of {repo, ref}', () => {
-    expect(parseConsumers('[{"repo":"stefanpenner/shared-workflow-consumer","ref":"main"}]')).toEqual(
-      [{ repo: 'stefanpenner/shared-workflow-consumer', ref: 'main' }],
-    );
+    assert.deepEqual(parseConsumers('[{"repo":"stefanpenner-cs/reusable-workflows-consumer","ref":"main"}]'), [
+      { repo: 'stefanpenner-cs/reusable-workflows-consumer', ref: 'main' },
+    ]);
   });
 
   it('defaults ref to main when omitted', () => {
-    expect(parseConsumers('[{"repo":"o/r"}]')).toEqual([{ repo: 'o/r', ref: 'main' }]);
+    assert.deepEqual(parseConsumers('[{"repo":"o/r"}]'), [{ repo: 'o/r', ref: 'main' }]);
   });
 
   it('allows an empty list', () => {
-    expect(parseConsumers('[]')).toEqual([]);
+    assert.deepEqual(parseConsumers('[]'), []);
   });
 
   it('throws on malformed JSON', () => {
-    expect(() => parseConsumers('not json')).toThrow();
+    assert.throws(() => parseConsumers('not json'));
   });
 
   it('throws when repo is missing', () => {
-    expect(() => parseConsumers('[{"ref":"main"}]')).toThrow();
+    assert.throws(() => parseConsumers('[{"ref":"main"}]'));
   });
 
   it('throws when repo is not owner/name', () => {
-    expect(() => parseConsumers('[{"repo":"nope"}]')).toThrow();
+    assert.throws(() => parseConsumers('[{"repo":"nope"}]'));
   });
 });
