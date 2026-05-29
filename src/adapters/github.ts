@@ -1,3 +1,4 @@
+import { setTimeout as delay } from 'node:timers/promises';
 import { capture, run } from './exec.ts';
 import { buildDispatchInputs, extractRunId, type ShadowContext } from '../core/dispatch.ts';
 
@@ -62,11 +63,34 @@ export async function ensurePr(opts: {
   return out.trim();
 }
 
-/** Block until the PR's checks finish; rejects on the first failing check. */
-export async function watchPrChecks(opts: { repo: string; branch: string; token: string }): Promise<void> {
-  await run('gh', ['pr', 'checks', opts.branch, '-R', opts.repo, '--watch', '--fail-fast'], {
-    env: ghEnv(opts.token),
-  });
+/** Block until the PR's checks finish; rejects on the first failing check. First waits for at least
+ * one check to be registered — `gh pr checks --watch` errors ("no checks reported") instead of
+ * waiting when a freshly-opened PR has no checks yet. */
+export async function watchPrChecks(opts: {
+  repo: string;
+  branch: string;
+  token: string;
+  attempts?: number;
+  intervalMs?: number;
+}): Promise<void> {
+  const env = ghEnv(opts.token);
+  const attempts = opts.attempts ?? 30;
+  const intervalMs = opts.intervalMs ?? 5000;
+
+  for (let i = 0; i < attempts; i++) {
+    const count = await capture(
+      'gh',
+      ['pr', 'checks', opts.branch, '-R', opts.repo, '--json', 'state', '--jq', 'length'],
+      { env },
+    ).catch(() => '0');
+    if (Number(count.trim()) > 0) break;
+    if (i === attempts - 1) {
+      throw new Error(`no checks registered on ${opts.branch} after ${(attempts * intervalMs) / 1000}s`);
+    }
+    await delay(intervalMs);
+  }
+
+  await run('gh', ['pr', 'checks', opts.branch, '-R', opts.repo, '--watch', '--fail-fast'], { env });
 }
 
 /** Create or update a single marker-tagged comment on the provider PR (no spam on re-runs). */
