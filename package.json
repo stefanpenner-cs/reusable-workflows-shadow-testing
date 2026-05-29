@@ -1,0 +1,34 @@
+{
+  "name": "reusable-workflows-shadow-testing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shadow-test a reusable-workflows PR against a real consumer under an authentic pull_request event.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "receiver": "tsx src/bin/mirror-and-test.ts",
+    "dispatch": "tsx src/bin/dispatch-and-watch.ts",
+    "cleanup": "tsx src/bin/cleanup.ts"
+  },
+  "dependencies": {
+    "yaml": "^2.6.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.1",
+    "vitest": "^2.1.8"
+  }
+}

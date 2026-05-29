@@ -1,0 +1,62 @@
+name: Shadow receiver
+
+# Triggered by the provider's shadow workflow (workflow_dispatch — so the run id comes back via
+# return_run_details). Mirrors the consumer onto a shadow branch and opens a real PR; the PR's
+# pull_request run is what actually exercises the provider draft. NOT triggered on pull_request,
+# so it never re-fires on the shadow PRs it creates.
+on:
+  workflow_dispatch:
+    inputs:
+      provider_repo:
+        description: owner/repo of the reusable-workflows provider
+        required: true
+        type: string
+      provider_ref:
+        description: provider PR head SHA to pin
+        required: true
+        type: string
+      consumer_repo:
+        description: owner/repo of the consumer to mirror
+        required: true
+        type: string
+      consumer_ref:
+        description: consumer ref to mirror
+        required: true
+        type: string
+      provider_pr:
+        description: provider PR number (for labelling)
+        required: true
+        type: string
+      branch:
+        description: deterministic shadow branch name
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: shadow-${{ inputs.branch }}
+  cancel-in-progress: true
+
+jobs:
+  mirror-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsx src/bin/mirror-and-test.ts
+        env:
+          PROVIDER_REPO: ${{ inputs.provider_repo }}
+          PROVIDER_REF: ${{ inputs.provider_ref }}
+          CONSUMER_REPO: ${{ inputs.consumer_repo }}
+          CONSUMER_REF: ${{ inputs.consumer_ref }}
+          PROVIDER_PR: ${{ inputs.provider_pr }}
+          BRANCH: ${{ inputs.branch }}
+          SHADOW_PAT: ${{ secrets.SHADOW_PAT }}
