@@ -1,51 +1,14 @@
-# reusable-workflows-shadow-testing
+# reusable-workflows-shadow-testing — shadow runner (shim)
 
-A disposable **sandbox harness** for shadow-testing a reusable-workflows PR against a real consumer,
-under an authentic `pull_request` event.
+The **venue** for shadow testing, not where its logic lives. All logic is in the **workflows** repo
+([`stefanpenner-cs/reusable-workflows`](https://github.com/stefanpenner-cs/reusable-workflows)) under
+`shadow/` — change shadow testing **there**.
 
-When a PR opens in the provider (`stefanpenner-cs/reusable-workflows`), its shadow workflow dispatches
-the [`receiver`](.github/workflows/receiver.yaml) here. The receiver:
+This repo holds one file with behavior: `.github/workflows/receiver.yaml`, a `workflow_dispatch`
+shim. The workflows repo dispatches it; it checks that repo out at the PR's ref and runs
+`node shadow/src/bin/mirror-and-test.ts`, which opens a **shadow PR here** whose `pull_request` run
+is the consumer's real CI. No source, no deps, no build.
 
-1. clones the consumer's code at the requested ref,
-2. repoints the consumer's `uses:` at the provider PR's head SHA and guarantees a `pull_request`
-   trigger (`src/core/transformWorkflowFile.ts`),
-3. pushes it to a deterministic `shadow/pr-<n>-<consumer>` branch and opens a **real PR**,
-4. waits on that PR's checks — so the receiver run's exit status _is_ the shadow-test result.
-
-Because a reusable workflow runs in its **caller's context**, driving the consumer from a genuine
-`pull_request` event is the only way the provider draft sees real PR context (`event_name`, the PR
-payload, base ref, merge-ref checkout). A `repository_dispatch`/`workflow_dispatch` cannot reproduce
-that. The shadow branch lives here (not in a fork), so the run keeps a normal token + secrets.
-
-## This repo is disposable
-
-Shadow PRs/branches are machine-generated and **must not be merged**. They are torn down when the
-provider PR closes. `main` holds only this Node tooling.
-
-## Fidelity caveats
-
-A sandbox mirror is faithful for build/lint/test, but it is **not** the consumer's real repo:
-
-- **Repo identity differs** — `github.repository` is this harness. Things keyed on repo name (ghcr
-  paths, codecov slug, OIDC `sub`) diverge. Cosmetic for build/lint/test, meaningful for
-  deploy/identity steps.
-- **Repo-scoped config doesn't transfer** — the consumer's secrets/variables/environments/branch
-  protections live in the consumer; map or stub the ones that matter.
-- **No real merge target** — the shadow branch sits on top of an ~empty base, so you get the
-  `pull_request` _event_, not a "consumer-feature merged into consumer-main" merge test.
-- **Security** — a same-repo shadow PR runs the (patched) consumer's CI with this harness's token
-  and secrets. Keep this repo's secrets minimal and its token scoped to this repo.
-- **Forks** — the provider PR head SHA must be reachable as `provider/...@<sha>`; fork-based provider
-  PRs won't resolve. Same-repo branch PRs are the supported path.
-
-## Development
-
-```sh
-npm ci
-npm test          # node --test (built-in runner; pure core is fully unit-tested)
-npm run typecheck
-npm run lint
-```
-
-Layout: pure, unit-tested logic in `src/core/`; thin git/GitHub/`gh` adapters in `src/adapters/`;
-workflow entrypoints in `src/bin/`.
+Why a separate repo: those throwaway shadow PRs need an isolated place to run a consumer's CI under
+a real `pull_request` event. The receiver is `workflow_dispatch`-only, so it never re-fires on the
+shadow PRs it creates.

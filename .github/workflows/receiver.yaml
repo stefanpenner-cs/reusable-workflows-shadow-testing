@@ -1,18 +1,19 @@
 name: Shadow receiver
 
-# Triggered by the provider's shadow workflow (workflow_dispatch — so the run id comes back via
-# return_run_details). Mirrors the consumer onto a shadow branch and opens a real PR; the PR's
-# pull_request run is what actually exercises the provider draft. NOT triggered on pull_request,
-# so it never re-fires on the shadow PRs it creates.
+# This repo (the "runner") is only the venue where shadow PRs are opened so a consumer's CI runs in
+# isolation. ALL shadow-testing logic lives in the workflows repo (stefanpenner-cs/reusable-workflows)
+# under shadow/. This shim is dispatched by that repo's shadow flow; it checks the workflows repo out
+# at the given ref and runs shadow/run-mirror.sh (which opens the shadow PR here). workflow_dispatch
+# only (so it never re-fires on the shadow PRs it creates), and the run id returns via return_run_details.
 on:
   workflow_dispatch:
     inputs:
-      provider_repo:
+      workflows_repo:
         description: owner/repo of the reusable-workflows provider
         required: true
         type: string
-      provider_ref:
-        description: provider PR head SHA to pin
+      workflows_ref:
+        description: workflows PR head SHA — pinned into consumers and used to run shadow/
         required: true
         type: string
       consumer_repo:
@@ -23,8 +24,8 @@ on:
         description: consumer ref to mirror
         required: true
         type: string
-      provider_pr:
-        description: provider PR number (for labelling)
+      workflows_pr:
+        description: workflows PR number (for labelling)
         required: true
         type: string
       branch:
@@ -46,17 +47,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.workflows_repo }}
+          ref: ${{ inputs.workflows_ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: node src/bin/mirror-and-test.ts
+      - name: Mirror consumer + run its CI against the workflows draft
         env:
-          PROVIDER_REPO: ${{ inputs.provider_repo }}
-          PROVIDER_REF: ${{ inputs.provider_ref }}
-          CONSUMER_REPO: ${{ inputs.consumer_repo }}
-          CONSUMER_REF: ${{ inputs.consumer_ref }}
-          PROVIDER_PR: ${{ inputs.provider_pr }}
-          BRANCH: ${{ inputs.branch }}
           SHADOW_PAT: ${{ secrets.SHADOW_PAT }}
+        run: node shadow/src/bin/mirror-and-test.ts --workflows-repo=${{ inputs.workflows_repo }} --workflows-ref=${{ inputs.workflows_ref }} --consumer-repo=${{ inputs.consumer_repo }} --consumer-ref=${{ inputs.consumer_ref }} --workflows-pr=${{ inputs.workflows_pr }} --branch=${{ inputs.branch }} --runner-repo=${{ github.repository }}
