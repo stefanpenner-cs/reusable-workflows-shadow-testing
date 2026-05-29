@@ -1,12 +1,22 @@
+import { appendFileSync } from 'node:fs';
 import { requireEnv } from '../core/requireEnv.ts';
 import { shadowBranchName } from '../core/shadowBranchName.ts';
+import { renderShadowSummary, type ShadowResult } from '../core/summary.ts';
 import type { ShadowContext } from '../core/dispatch.ts';
 import * as github from '../adapters/github.ts';
 
+/** Append markdown to the GitHub job summary (the shadow check's page); also log it. */
+function writeJobSummary(markdown: string): void {
+  console.log(markdown);
+  const file = process.env.GITHUB_STEP_SUMMARY;
+  if (file) appendFileSync(file, markdown);
+}
+
 /**
  * Provider entrypoint (runs in P on a labeled pull_request, one invocation per consumer). Dispatches
- * the harness receiver, captures its run id natively, watches it to completion, and reflects the
- * result back as a sticky comment. The job's own exit status becomes the PR's status check.
+ * the harness receiver, captures its run id natively, and watches it to completion. The job's exit
+ * status is the PR's shadow check; the result + links are rendered into the job summary (the check's
+ * markdown page) rather than a PR comment.
  */
 async function main(): Promise<void> {
   const harnessRepo = requireEnv('HARNESS_REPO');
@@ -20,45 +30,25 @@ async function main(): Promise<void> {
 
   const branch = shadowBranchName({ prNumber: providerPr, consumerRepo });
   const ctx: ShadowContext = { providerRepo, providerRef, consumerRepo, consumerRef, providerPr, branch };
-  const marker = `<!-- shadow:${consumerRepo} -->`;
 
   const runId = await github.dispatchReceiver({ harnessRepo, harnessRef, ctx, token });
   const runUrl = `https://github.com/${harnessRepo}/actions/runs/${runId}`;
   console.log(`dispatched receiver run: ${runUrl}`);
 
-  const link = async (state: string): Promise<string> => {
+  const summarize = async (result: ShadowResult): Promise<void> => {
     const prUrl = await github.findPrUrl({ repo: harnessRepo, branch, token });
-    return `${state} for \`${consumerRepo}\` — [run](${runUrl})${prUrl ? ` · [shadow PR](${prUrl})` : ''}`;
+    writeJobSummary(
+      renderShadowSummary({ consumerRepo, consumerRef, providerRepo, providerRef, providerPr, result, runUrl, prUrl }),
+    );
   };
-
-  await github.upsertStickyComment({
-    repo: providerRepo,
-    pr: providerPr,
-    marker,
-    body: `🛰️ ${await link('**Shadow test running**')}`,
-    token,
-  });
 
   try {
     await github.watchRun({ harnessRepo, runId, token });
   } catch (error) {
-    await github.upsertStickyComment({
-      repo: providerRepo,
-      pr: providerPr,
-      marker,
-      body: `❌ ${await link('**Shadow test FAILED**')}`,
-      token,
-    });
+    await summarize('failed');
     throw error;
   }
-
-  await github.upsertStickyComment({
-    repo: providerRepo,
-    pr: providerPr,
-    marker,
-    body: `✅ ${await link('**Shadow test passed**')}`,
-    token,
-  });
+  await summarize('passed');
 }
 
 main().catch((error) => {

@@ -102,29 +102,6 @@ export async function watchCommitRun(opts: {
   await run('gh', ['run', 'watch', runId, '-R', opts.repo, '--exit-status'], { env });
 }
 
-/** Create or update a single marker-tagged comment on the provider PR (no spam on re-runs). */
-export async function upsertStickyComment(opts: {
-  repo: string;
-  pr: number;
-  marker: string;
-  body: string;
-  token: string;
-}): Promise<void> {
-  const env = ghEnv(opts.token);
-  const fullBody = `${opts.marker}\n${opts.body}`;
-  const ids = await capture(
-    'gh',
-    ['api', '--paginate', `repos/${opts.repo}/issues/${opts.pr}/comments`, '--jq', `.[] | select(.body | startswith("${opts.marker}")) | .id`],
-    { env },
-  );
-  const id = ids.trim().split('\n').filter(Boolean)[0];
-  if (id) {
-    await capture('gh', ['api', '-X', 'PATCH', `repos/${opts.repo}/issues/comments/${id}`, '-f', `body=${fullBody}`], { env });
-  } else {
-    await capture('gh', ['api', '-X', 'POST', `repos/${opts.repo}/issues/${opts.pr}/comments`, '-f', `body=${fullBody}`], { env });
-  }
-}
-
 /** Close the shadow PR (deleting its branch). Best-effort: ignores "already gone". */
 export async function closePrAndDeleteBranch(opts: { repo: string; branch: string; token: string }): Promise<void> {
   const env = ghEnv(opts.token);

@@ -27,11 +27,14 @@ jobs:
     if: github.event_name == 'pull_request' && vars.SHADOW_PROVIDER_PR != ''
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - name: Dispatch provider shadow run against this harness branch
         env:
           GH_TOKEN: ${{ secrets.SHADOW_PAT }}
-        run: >-
-          gh workflow run shadow.yaml
-          -R stefanpenner-cs/reusable-workflows
-          -f pr=${{ vars.SHADOW_PROVIDER_PR }}
-          -f harness_ref=${{ github.head_ref }}
+          PROVIDER_REPO: stefanpenner-cs/reusable-workflows
+          PROVIDER_PR: ${{ vars.SHADOW_PROVIDER_PR }}
+          HARNESS_REF: ${{ github.head_ref }}
+        run: node src/bin/dispatch-provider-shadow.ts
