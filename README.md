@@ -42,7 +42,7 @@ A sandbox mirror is faithful for build/lint/test, but it is **not** the consumer
 
 ```sh
 npm ci
-npm test          # vitest (the real gate — pure core is fully unit-tested)
+npm test          # node --test (built-in runner; pure core is fully unit-tested)
 npm run typecheck
 npm run lint
 ```

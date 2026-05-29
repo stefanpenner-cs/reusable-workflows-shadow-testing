@@ -1,16 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import { requireEnv } from '../src/core/requireEnv.ts';
 
 describe('requireEnv', () => {
   it('returns the value when set and non-empty', () => {
-    expect(requireEnv('REQUIRE_ENV_TEST', { REQUIRE_ENV_TEST: 'value' })).toBe('value');
+    assert.equal(requireEnv('REQUIRE_ENV_TEST', { REQUIRE_ENV_TEST: 'value' }), 'value');
   });
 
   it('throws naming the variable when missing', () => {
-    expect(() => requireEnv('REQUIRE_ENV_MISSING', {})).toThrow(/REQUIRE_ENV_MISSING/);
+    assert.throws(() => requireEnv('REQUIRE_ENV_MISSING', {}), /REQUIRE_ENV_MISSING/);
   });
 
   it('throws when empty', () => {
-    expect(() => requireEnv('REQUIRE_ENV_EMPTY', { REQUIRE_ENV_EMPTY: '' })).toThrow();
+    assert.throws(() => requireEnv('REQUIRE_ENV_EMPTY', { REQUIRE_ENV_EMPTY: '' }));
   });
 });
