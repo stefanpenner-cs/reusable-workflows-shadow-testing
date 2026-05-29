@@ -6,8 +6,8 @@ The **venue** for shadow testing, not where its logic lives. All logic is in the
 
 This repo holds one file with behavior: `.github/workflows/receiver.yaml`, a `workflow_dispatch`
 shim. The workflows repo dispatches it; it checks that repo out at the PR's ref and runs
-`node shadow/src/bin/mirror-and-test.ts`, which opens a **shadow PR here** whose `pull_request` run
-is the consumer's real CI. No source, no deps, no build.
+`node shadow/src/bin/mirror-and-test.mts`, which opens a **shadow PR here** whose `pull_request`
+run is the consumer's real CI. No source, no deps, no build.
 
 Why a separate repo: those throwaway shadow PRs need an isolated place to run a consumer's CI under
 a real `pull_request` event. The receiver is `workflow_dispatch`-only, so it never re-fires on the
