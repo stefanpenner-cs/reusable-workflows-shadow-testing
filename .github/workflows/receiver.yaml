@@ -6,6 +6,27 @@ name: Shadow receiver
 # the workflows repo out at the given ref and runs `bazelisk run //shadow/cmd/mirror-and-test` (which
 # opens the shadow PR here). workflow_dispatch only (so it never re-fires on the shadow PRs it
 # creates), and the run id returns via return_run_details.
+# SECURITY MODEL — read before changing the trigger. Full write-up + runtime test in the workflows
+# repo: shadow/SECURITY.md (verified by //shadow/cmd/check-dispatch-auth).
+#
+# This is workflow_dispatch ONLY, and that is load-bearing. The job checks out
+# `inputs.workflows_repo` at `inputs.workflows_ref` and runs THAT checkout's Go
+# (`bazelisk run //shadow/cmd/mirror-and-test`) with `secrets.SHADOW_PAT` in scope and
+# contents/pull-requests write. So whoever dispatches fully controls what code executes with
+# the secret: the dispatcher is a fully trusted principal, not an arbitrary caller.
+#
+# Who can dispatch (and only these):
+#   - principals with write/maintain/admin on THIS runner repo (UI / `gh workflow run` / REST), and
+#   - any holder of a token with actions:write here — in practice SHADOW_PAT, which the workflows
+#     repo's shadow flow uses to dispatch programmatically.
+# Who CANNOT: fork contributors, read-only collaborators, the public, and another repo's default
+# GITHUB_TOKEN. (workflow_dispatch requires actions:write — GitHub withholds it from all of these.)
+#
+# The workflow *definition* always runs from the dispatched `ref` (the flow passes `main`), so this
+# file can't be swapped by a PR. But `inputs` are otherwise UNTRUSTED strings — workflows_repo,
+# consumer_repo, and the refs are not constrained here. They must be validated by the Go entrypoint
+# (allow-list the provider + consumer repos, require a 40-hex SHA for workflows_ref); do not rely on
+# this shim to bound them.
 on:
   workflow_dispatch:
     inputs:
@@ -59,4 +80,11 @@ jobs:
       - name: Mirror consumer + run its CI against the workflows draft
         env:
           SHADOW_PAT: ${{ secrets.SHADOW_PAT }}
-        run: bazelisk run //shadow/cmd/mirror-and-test -- --workflows-repo=${{ inputs.workflows_repo }} --workflows-ref=${{ inputs.workflows_ref }} --consumer-repo=${{ inputs.consumer_repo }} --consumer-ref=${{ inputs.consumer_ref }} --workflows-pr=${{ inputs.workflows_pr }} --branch=${{ inputs.branch }} --runner-repo=${{ github.repository }}
+        run: bazelisk run //shadow/cmd/mirror-and-test --
+          --workflows-repo=${{ inputs.workflows_repo }}
+          --workflows-ref=${{ inputs.workflows_ref }}
+          --consumer-repo=${{ inputs.consumer_repo }}
+          --consumer-ref=${{ inputs.consumer_ref }}
+          --workflows-pr=${{ inputs.workflows_pr }}
+          --branch=${{ inputs.branch }}
+          --runner-repo=${{ github.repository }}
