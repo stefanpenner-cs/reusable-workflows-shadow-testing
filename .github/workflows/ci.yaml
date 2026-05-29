@@ -18,3 +18,20 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+
+  # Dogfood: exercise THIS PR's harness code end-to-end by dispatching the provider's shadow
+  # flow with harness_ref = this PR's branch. Fire-and-forget — the result surfaces on the
+  # provider PR named in the repo variable SHADOW_PROVIDER_PR (a long-lived "known-good" PR).
+  # Skips automatically until that variable is set. Needs SHADOW_PAT (actions:write on provider).
+  shadow-dogfood:
+    if: github.event_name == 'pull_request' && vars.SHADOW_PROVIDER_PR != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch provider shadow run against this harness branch
+        env:
+          GH_TOKEN: ${{ secrets.SHADOW_PAT }}
+        run: >-
+          gh workflow run shadow.yaml
+          -R stefanpenner-cs/reusable-workflows
+          -f pr=${{ vars.SHADOW_PROVIDER_PR }}
+          -f harness_ref=${{ github.head_ref }}

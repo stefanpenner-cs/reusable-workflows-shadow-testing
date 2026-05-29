@@ -10,6 +10,7 @@ import * as github from '../adapters/github.ts';
  */
 async function main(): Promise<void> {
   const harnessRepo = requireEnv('HARNESS_REPO');
+  const harnessRef = process.env.HARNESS_REF || 'main';
   const providerRepo = requireEnv('PROVIDER_REPO');
   const providerRef = requireEnv('PROVIDER_REF');
   const providerPr = Number(requireEnv('PROVIDER_PR'));
@@ -21,7 +22,7 @@ async function main(): Promise<void> {
   const ctx: ShadowContext = { providerRepo, providerRef, consumerRepo, consumerRef, providerPr, branch };
   const marker = `<!-- shadow:${consumerRepo} -->`;
 
-  const runId = await github.dispatchReceiver({ harnessRepo, ctx, token });
+  const runId = await github.dispatchReceiver({ harnessRepo, harnessRef, ctx, token });
   const runUrl = `https://github.com/${harnessRepo}/actions/runs/${runId}`;
   console.log(`dispatched receiver run: ${runUrl}`);
 

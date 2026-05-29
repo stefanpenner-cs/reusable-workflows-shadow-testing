@@ -7,14 +7,17 @@ const RECEIVER_WORKFLOW = 'receiver.yaml';
 const ghEnv = (token: string): NodeJS.ProcessEnv => ({ ...process.env, GH_TOKEN: token });
 
 /** Trigger the harness receiver via workflow_dispatch and return the created run id (the
- * 2026-02 `return_run_details` capability — no run-discovery polling needed). */
+ * 2026-02 `return_run_details` capability — no run-discovery polling needed). `harnessRef` is
+ * the branch/tag whose version of the receiver runs, so harness changes can be dogfooded.
+ * (workflow_dispatch accepts only a branch/tag here, not a SHA.) */
 export async function dispatchReceiver(opts: {
   harnessRepo: string;
+  harnessRef: string;
   ctx: ShadowContext;
   token: string;
 }): Promise<number> {
   const body = JSON.stringify({
-    ref: 'main',
+    ref: opts.harnessRef,
     inputs: buildDispatchInputs(opts.ctx),
     return_run_details: true,
   });
