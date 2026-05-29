@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDispatchInputs, extractRunId } from '../src/core/dispatch.ts';
+import { buildDispatchInputs, extractRunId, classifyRunState } from '../src/core/dispatch.ts';
 
 describe('buildDispatchInputs', () => {
   it('maps the shadow context to the receiver workflow_dispatch inputs (all strings)', () => {
@@ -43,5 +43,22 @@ describe('extractRunId', () => {
 
   it('throws when workflow_run_id is not a number', () => {
     assert.throws(() => extractRunId({ workflow_run_id: 'nope' }));
+  });
+});
+
+describe('classifyRunState', () => {
+  it('is pending while not completed', () => {
+    assert.equal(classifyRunState('queued', null), 'pending');
+    assert.equal(classifyRunState('in_progress', null), 'pending');
+  });
+
+  it('is success only when completed + success', () => {
+    assert.equal(classifyRunState('completed', 'success'), 'success');
+  });
+
+  it('is failure for any non-success conclusion', () => {
+    assert.equal(classifyRunState('completed', 'failure'), 'failure');
+    assert.equal(classifyRunState('completed', 'cancelled'), 'failure');
+    assert.equal(classifyRunState('completed', null), 'failure');
   });
 });

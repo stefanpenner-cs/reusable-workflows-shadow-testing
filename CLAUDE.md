@@ -11,12 +11,17 @@ Conventions for this repo (the shadow-testing harness). Follow them exactly.
    `npm run lint`) are the only allowed inline commands. If a step needs to *decide*,
    *loop*, *parse*, or *call an API*, it belongs in a `src/bin` entry, not YAML.
 2. **Everything is Node + tested.** Write TypeScript that runs natively on **Node 24**
-   (built-in type-stripping — no `tsx`, no transpile step, no `npm` needed at runtime).
-   Every module has a `test/<name>.test.ts` using `node:test` + `node:assert/strict`.
-   Run `node --test test/*.test.ts` (or `npm test`).
-3. **Zero third-party runtime deps** wherever feasible — prefer `node:` built-ins so bins
-   run on raw Node 24 with no `node_modules`. (`yaml` is the one sanctioned runtime dep,
-   used only by `mirror-and-test` for comment-preserving workflow edits.)
+   (built-in type-stripping — no `tsx`, no transpile step). Every module has a
+   `test/<name>.test.ts` using `node:test` + `node:assert/strict` (`npm test` runs
+   `node --test`). Dev tooling (`tsc` typecheck, `eslint`) runs via npm in **this repo's
+   own CI only** — that's the one place npm belongs.
+3. **Provider-invoked bins must be zero-dependency.** The provider runs `list-consumers`,
+   `dispatch-and-watch`, `cleanup`, and `dispatch-provider-shadow` directly on raw Node 24
+   with **no `npm ci`** — so they, and everything in `src/core` / `src/adapters` they
+   import, must use only `node:` built-ins. The single third-party runtime dep, `yaml`, is
+   allowed **only** on `mirror-and-test`'s path (`patchConsumerWorkflow` /
+   `ensurePullRequestTrigger`), which runs under this repo's own receiver CI where
+   `npm ci` is available. Don't pull a dep into a provider-invoked bin's import graph.
 
 ## Layout
 

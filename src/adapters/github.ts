@@ -1,10 +1,46 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { capture, run } from './exec.ts';
-import { buildDispatchInputs, extractRunId, type ShadowContext } from '../core/dispatch.ts';
+import { buildDispatchInputs, classifyRunState, extractRunId, type ShadowContext } from '../core/dispatch.ts';
 
 const RECEIVER_WORKFLOW = 'receiver.yaml';
 
 const ghEnv = (token: string): NodeJS.ProcessEnv => ({ ...process.env, GH_TOKEN: token });
+
+/**
+ * Poll a run to completion, logging ONE line per status transition (queued → in_progress →
+ * completed). Replaces `gh run watch`, which in non-TTY CI re-prints the whole run tree every tick
+ * (dozens of repeated "mirror-and-test" lines). Resolves on success; rejects on any other outcome.
+ */
+async function pollRunToCompletion(opts: {
+  repo: string;
+  runId: number | string;
+  token: string;
+  label: string;
+  attempts?: number;
+  intervalMs?: number;
+}): Promise<void> {
+  const env = ghEnv(opts.token);
+  const attempts = opts.attempts ?? 180;
+  const intervalMs = opts.intervalMs ?? 5000;
+  let lastStatus = '';
+
+  for (let i = 0; i < attempts; i++) {
+    const { status, conclusion } = JSON.parse(
+      await capture('gh', ['run', 'view', String(opts.runId), '-R', opts.repo, '--json', 'status,conclusion'], { env }),
+    ) as { status: string; conclusion: string | null };
+
+    if (status !== lastStatus) {
+      console.log(`${opts.label} #${opts.runId}: ${status}`);
+      lastStatus = status;
+    }
+
+    const state = classifyRunState(status, conclusion);
+    if (state === 'success') return;
+    if (state === 'failure') throw new Error(`${opts.label} #${opts.runId} ${conclusion ?? 'failed'}`);
+    await delay(intervalMs);
+  }
+  throw new Error(`timed out waiting for ${opts.label} #${opts.runId} after ${(attempts * intervalMs) / 1000}s`);
+}
 
 /** Trigger the harness receiver via workflow_dispatch and return the created run id (the
  * 2026-02 `return_run_details` capability — no run-discovery polling needed). `harnessRef` is
@@ -29,11 +65,9 @@ export async function dispatchReceiver(opts: {
   return extractRunId(JSON.parse(out));
 }
 
-/** Block until a run finishes, streaming logs; rejects if the run concludes non-successfully. */
+/** Watch a run to completion (quietly); rejects if it concludes non-successfully. */
 export async function watchRun(opts: { harnessRepo: string; runId: number; token: string }): Promise<void> {
-  await run('gh', ['run', 'watch', String(opts.runId), '-R', opts.harnessRepo, '--exit-status'], {
-    env: ghEnv(opts.token),
-  });
+  await pollRunToCompletion({ repo: opts.harnessRepo, runId: opts.runId, token: opts.token, label: 'receiver run' });
 }
 
 /** URL of the open PR for a head branch, or null if none exists. */
@@ -99,7 +133,7 @@ export async function watchCommitRun(opts: {
     await delay(intervalMs);
   }
 
-  await run('gh', ['run', 'watch', runId, '-R', opts.repo, '--exit-status'], { env });
+  await pollRunToCompletion({ repo: opts.repo, runId, token: opts.token, label: 'consumer CI' });
 }
 
 /** Close the shadow PR (deleting its branch). Best-effort: ignores "already gone". */

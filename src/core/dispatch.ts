@@ -23,6 +23,15 @@ export function buildDispatchInputs(ctx: ShadowContext): Record<string, string> 
  * Read the run id from a `workflow_dispatch` response created with `return_run_details: true`.
  * REST shape: `{ workflow_run_id, run_url, html_url }`.
  */
+export type RunState = 'pending' | 'success' | 'failure';
+
+/** Classify a workflow run from its `status`/`conclusion`. Pure: drives quiet polling (log only on
+ * change, return on success, throw on failure) instead of the noisy `gh run watch` redraw. */
+export function classifyRunState(status: string, conclusion: string | null): RunState {
+  if (status !== 'completed') return 'pending';
+  return conclusion === 'success' ? 'success' : 'failure';
+}
+
 export function extractRunId(response: unknown): number {
   const id = (response as { workflow_run_id?: unknown } | null)?.workflow_run_id;
   if (typeof id !== 'number' || !Number.isFinite(id)) {
