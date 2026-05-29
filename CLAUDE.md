@@ -5,5 +5,6 @@ shadow-testing logic lives in the **workflows** repo (`stefanpenner-cs/reusable-
 `shadow/`. Change behavior there, not here.
 
 - The only file with behavior is `.github/workflows/receiver.yaml`: a `workflow_dispatch` shim that
-  checks out the workflows repo at the dispatched ref and runs `node shadow/src/bin/mirror-and-test.ts`.
-- Don't add source / deps / build here. Keep the receiver's `run:` a single `node …` invocation.
+  checks out the workflows repo at the dispatched ref and runs
+  `bazelisk run //shadow/cmd/mirror-and-test` (the shadow harness is Go, built with Bazel there).
+- Don't add source / deps / build here. Keep the receiver's `run:` a single `bazelisk run …`.
