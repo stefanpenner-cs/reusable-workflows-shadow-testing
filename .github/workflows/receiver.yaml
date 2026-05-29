@@ -53,6 +53,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Install shadow deps (yaml)
+        run: node shadow/install.mjs
       - name: Mirror consumer + run its CI against the workflows draft
         env:
           SHADOW_PAT: ${{ secrets.SHADOW_PAT }}
