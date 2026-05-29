@@ -43,6 +43,7 @@ async function main(): Promise<void> {
     `shadow: ${consumerRepo}@${consumerRef} vs ${providerRepo}@${providerRef} (provider PR #${providerPr})`,
   );
   await git.forcePush(shadowDir, branch);
+  const sha = await git.headSha(shadowDir);
 
   const prUrl = await github.ensurePr({
     repo: harnessRepo,
@@ -60,9 +61,9 @@ async function main(): Promise<void> {
     ].join('\n'),
     token,
   });
-  console.log(`shadow PR: ${prUrl}`);
+  console.log(`shadow PR: ${prUrl} (head ${sha})`);
 
-  await github.watchPrChecks({ repo: harnessRepo, branch, token });
+  await github.watchCommitRun({ repo: harnessRepo, sha, token });
 }
 
 main().catch((error) => {

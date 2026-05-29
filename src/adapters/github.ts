@@ -63,34 +63,40 @@ export async function ensurePr(opts: {
   return out.trim();
 }
 
-/** Block until the PR's checks finish; rejects on the first failing check. First waits for at least
- * one check to be registered — `gh pr checks --watch` errors ("no checks reported") instead of
- * waiting when a freshly-opened PR has no checks yet. */
-export async function watchPrChecks(opts: {
+/**
+ * Watch the workflow run for an exact commit SHA to completion; rejects if it concludes
+ * non-successfully. Keying on the SHA (not the branch) is deterministic — immune to stale checks
+ * from a previous head after a force-push, and to the "no checks reported yet" race. The only
+ * inherent wait is GitHub creating the run for the just-pushed SHA (bounded poll).
+ */
+export async function watchCommitRun(opts: {
   repo: string;
-  branch: string;
+  sha: string;
   token: string;
   attempts?: number;
   intervalMs?: number;
 }): Promise<void> {
   const env = ghEnv(opts.token);
-  const attempts = opts.attempts ?? 30;
+  const attempts = opts.attempts ?? 40;
   const intervalMs = opts.intervalMs ?? 5000;
 
+  let runId = '';
   for (let i = 0; i < attempts; i++) {
-    const count = await capture(
-      'gh',
-      ['pr', 'checks', opts.branch, '-R', opts.repo, '--json', 'state', '--jq', 'length'],
-      { env },
-    ).catch(() => '0');
-    if (Number(count.trim()) > 0) break;
+    runId = (
+      await capture(
+        'gh',
+        ['run', 'list', '-R', opts.repo, '--commit', opts.sha, '--json', 'databaseId', '--jq', '.[0].databaseId // ""'],
+        { env },
+      ).catch(() => '')
+    ).trim();
+    if (runId) break;
     if (i === attempts - 1) {
-      throw new Error(`no checks registered on ${opts.branch} after ${(attempts * intervalMs) / 1000}s`);
+      throw new Error(`no workflow run appeared for ${opts.repo}@${opts.sha} after ${(attempts * intervalMs) / 1000}s`);
     }
     await delay(intervalMs);
   }
 
-  await run('gh', ['pr', 'checks', opts.branch, '-R', opts.repo, '--watch', '--fail-fast'], { env });
+  await run('gh', ['run', 'watch', runId, '-R', opts.repo, '--exit-status'], { env });
 }
 
 /** Create or update a single marker-tagged comment on the provider PR (no spam on re-runs). */
