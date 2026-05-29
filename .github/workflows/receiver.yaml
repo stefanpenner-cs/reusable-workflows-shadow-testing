@@ -56,4 +56,4 @@ jobs:
       - name: Mirror consumer + run its CI against the workflows draft
         env:
           SHADOW_PAT: ${{ secrets.SHADOW_PAT }}
-        run: node shadow/src/bin/mirror-and-test.ts --workflows-repo=${{ inputs.workflows_repo }} --workflows-ref=${{ inputs.workflows_ref }} --consumer-repo=${{ inputs.consumer_repo }} --consumer-ref=${{ inputs.consumer_ref }} --workflows-pr=${{ inputs.workflows_pr }} --branch=${{ inputs.branch }} --runner-repo=${{ github.repository }}
+        run: node shadow/src/bin/mirror-and-test.mts --workflows-repo=${{ inputs.workflows_repo }} --workflows-ref=${{ inputs.workflows_ref }} --consumer-repo=${{ inputs.consumer_repo }} --consumer-ref=${{ inputs.consumer_ref }} --workflows-pr=${{ inputs.workflows_pr }} --branch=${{ inputs.branch }} --runner-repo=${{ github.repository }}
